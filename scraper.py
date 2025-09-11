@@ -22,7 +22,7 @@ OUTPUT_CSV = "results.csv"
 MIN_YEAR = 2023
 CITY_FILTER = "Seattle"
 WORKERS = 1         # <-- set to 1 while debugging so only one browser opens
-HEADLESS = True   # <-- set False so Chrome opens visibly
+HEADLESS = False   # <-- set False so Chrome opens visibly
 MAX_LISTINGS = None
 REQUEST_DELAY = (0.5, 1.0)
 PAGE_LOAD_TIMEOUT = 25
@@ -469,4 +469,5 @@ def main():
 
 
 if __name__ == "__main__":
+
     main()
