@@ -297,13 +297,10 @@ def _append_log_row(logfile, row):
         except Exception as e:
             print("Failed to write log row:", e)
 
-
 def process_link_batch(links, min_year, city_filter, output_csv, worker_id):
     """
-    Improved per-visit logging and console output for verification.
-    Writes two outputs:
-     - results.csv (only saved rows that passed filters),
-     - screened_log.csv (every visited link and its status).
+    Visit links, screen by built year and city, log every visit to screened_log.csv,
+    and append passing rows to output_csv as: title, built_year, hyperlink-to-listing.
     """
     driver = make_chrome_driver(headless=HEADLESS)
     results = []
@@ -318,25 +315,23 @@ def process_link_batch(links, min_year, city_filter, output_csv, worker_id):
         try:
             print(f"[W{worker_id}] ({idx}/{len(links)}) visiting: {link}")
             driver.get(link)
-            # small random short delay to allow extra JS pieces to settle if needed
             time.sleep(random.uniform(0.2, 0.6))
 
-            # Try to extract title and address *first* so we can log/print them regardless
+            # Try to extract title and address early for logging
             try:
                 el_h1 = driver.find_elements(By.CSS_SELECTOR, "h1")
                 if el_h1 and el_h1[0].text.strip():
                     title = el_h1[0].text.strip()
             except Exception:
-                title = title
+                pass
 
             try:
                 addr_sel = driver.find_elements(By.CSS_SELECTOR, ".propertyAddress, .property-address, .js-address")
                 if addr_sel and addr_sel[0].text.strip():
                     address = addr_sel[0].text.strip()
             except Exception:
-                address = address
+                pass
 
-            # fallback: meta description
             if not address:
                 try:
                     meta = driver.find_elements(By.CSS_SELECTOR, "meta[name='description']")
@@ -347,10 +342,8 @@ def process_link_batch(links, min_year, city_filter, output_csv, worker_id):
                 except Exception:
                     pass
 
-            # Print immediate verification message (so you can watch names as they're checked)
             print(f"[W{worker_id}]  -> Title: {title or 'NO TITLE'} | Address: {address or 'NO ADDRESS'}")
 
-            # page_text used for 'Built in' search
             page_text = driver.page_source
 
             # find "Built in ####"
@@ -380,7 +373,7 @@ def process_link_batch(links, min_year, city_filter, output_csv, worker_id):
                     continue
 
             # Passed all checks -> save
-            results.append((title, address, built_year, link))
+            results.append((title, built_year, link))
             status = "saved"
             note = f"Built in {built_year}"
             print(f"[W{worker_id}]  -> Saved: {title or 'no title'} | Built in {built_year}")
@@ -393,7 +386,6 @@ def process_link_batch(links, min_year, city_filter, output_csv, worker_id):
             print(f"[W{worker_id}]  -> Error visiting {link}: {e}")
             _append_log_row(log_file, (worker_id, idx, len(links), title, address, link, built_year or "", status, note))
 
-        # polite short delay
         time.sleep(random.uniform(*REQUEST_DELAY))
 
     driver.quit()
@@ -402,19 +394,19 @@ def process_link_batch(links, min_year, city_filter, output_csv, worker_id):
     if results:
         unique = []
         seen_res = set()
-        for title, address, built_year, url in results:
+        for title, built_year, url in results:
             key = normalize_url(url)
             if not key or key in seen_res:
                 continue
             seen_res.add(key)
-            unique.append((title, address, built_year, url))
+            unique.append((title, built_year, url))
         results = unique
 
-    # write results to CSV (thread-safe) - identical behavior as before but keep thread-safety
+    # write results to CSV (thread-safe)
     if results:
         with csv_lock:
             try:
-                # check if file exists; if not write header then rows
+                # check if file exists; choose mode and write header if creating
                 try:
                     open(output_csv, "r", encoding="utf-8").close()
                     mode = "a"
@@ -423,15 +415,14 @@ def process_link_batch(links, min_year, city_filter, output_csv, worker_id):
                 with open(output_csv, mode, newline="", encoding="utf-8") as f:
                     writer = csv.writer(f)
                     if mode == "w":
-                        writer.writerow(["title", "address", "built_year", "url"])
-                    # inside the final CSV write loop in process_link_batch
-                for row in results:
-                    title, address, built_year, url = row
-                    hyperlink_formula = f'=HYPERLINK("{url}", "{title or "Listing"}")'
-                    writer.writerow([title, address, built_year, hyperlink_formula])
+                        # Only title, built_year, url (hyperlink formula)
+                        writer.writerow(["title", "built_year", "url"])
+                    # IMPORTANT: write rows while file is still open
+                    for title, built_year, url in results:
+                        hyperlink_formula = f'=HYPERLINK("{url}", "{title or "Listing"}")'
+                        writer.writerow([title, built_year, hyperlink_formula])
             except Exception as e:
                 print("Failed to write results.csv:", e)
-
 
 def main():
     print("Starting master driver to collect listing links...")
@@ -469,5 +460,4 @@ def main():
 
 
 if __name__ == "__main__":
-
     main()
