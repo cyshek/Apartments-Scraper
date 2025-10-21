@@ -17,10 +17,10 @@ from selenium.common.exceptions import TimeoutException
 
 
 # ----------------- CONFIG -----------------
-SEARCH_URL = "https://www.apartments.com/apartments/seattle-wa/"
+SEARCH_URL = "https://www.apartments.com/apartments/?sk=8242ee8815dc8b02eee84bdaa4d2d4f0&bb=39wl179vvQyl20m1L"
 OUTPUT_CSV = "results.csv"
 MIN_YEAR = 2023
-CITY_FILTER = "Seattle"
+CITY_FILTER = ""
 WORKERS = 1         # <-- set to 1 while debugging so only one browser opens
 HEADLESS = False   # <-- set False so Chrome opens visibly
 MAX_LISTINGS = None
