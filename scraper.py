@@ -109,6 +109,10 @@ def collect_listing_links(driver, search_url, max_listings=None, max_pages=50):
     """
     print("Loading search page and collecting listing links (paginating)...")
     driver.get(search_url)
+
+    print("Waiting 180 seconds for boundary-based results to fully load...")
+    time.sleep(180)  # adjust time depending on your connection / results
+    
     wait = WebDriverWait(driver, 12)
 
     # candidate selectors for listing anchors (same as before)
@@ -461,3 +465,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
